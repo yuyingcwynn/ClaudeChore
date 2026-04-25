@@ -75,18 +75,184 @@
 <script type="text/babel">
 const { useState, useEffect } = React;
 
-function App() {
+// ── DATA ─────────────────────────────────────────────────────────────────────
+
+const MEMBERS = [
+  { id: 'mom',    name: 'Mom',    color: 'var(--neon-pink)',   avatar: ['11111','10001','10101','10001','11111'] },
+  { id: 'dad',    name: 'Dad',    color: 'var(--neon-blue)',   avatar: ['01110','11111','01110','00100','01010'] },
+  { id: 'kevin',  name: 'Kevin',  color: 'var(--neon-green)',  avatar: ['11100','10010','11100','10010','10011'] },
+  { id: 'sophia', name: 'Sophia', color: 'var(--neon-yellow)', avatar: ['01110','01110','00100','01110','01010'] },
+];
+
+const TODAY = 'Tue';
+
+const INITIAL_QUESTS = [
+  // Daily
+  { id: 'q1',  title: 'Wash the dishes',       pts: 15, assignee: 'kevin',  status: 'done',        category: 'kitchen', freq: 'daily',  day: null },
+  { id: 'q2',  title: 'Wipe kitchen counters',  pts: 10, assignee: 'sophia', status: 'in-progress', category: 'kitchen', freq: 'daily',  day: null },
+  { id: 'q3',  title: 'Take out trash',          pts: 15, assignee: 'dad',   status: 'todo',        category: 'general', freq: 'daily',  day: null },
+  // Cook nights Mon–Fri
+  { id: 'q4',  title: 'Cook dinner',             pts: 25, assignee: 'mom',   status: 'done',        category: 'kitchen', freq: 'daily',  day: 'Mon', cookNight: true },
+  { id: 'q5',  title: 'Cook dinner',             pts: 25, assignee: 'dad',   status: 'todo',        category: 'kitchen', freq: 'daily',  day: TODAY,  cookNight: true },
+  { id: 'q6',  title: 'Cook dinner',             pts: 25, assignee: 'kevin', status: 'todo',        category: 'kitchen', freq: 'daily',  day: 'Wed', cookNight: true },
+  { id: 'q7',  title: 'Cook dinner',             pts: 25, assignee: 'sophia',status: 'todo',        category: 'kitchen', freq: 'daily',  day: 'Thu', cookNight: true },
+  { id: 'q8',  title: 'Cook dinner',             pts: 25, assignee: 'mom',   status: 'todo',        category: 'kitchen', freq: 'daily',  day: 'Fri', cookNight: true },
+  // Weekly
+  { id: 'q9',  title: 'Vacuum living room',      pts: 20, assignee: 'kevin',  status: 'todo',       category: 'cleaning', freq: 'weekly', day: 'Mon' },
+  { id: 'q10', title: 'Vacuum bedrooms',         pts: 20, assignee: 'sophia', status: 'done',       category: 'cleaning', freq: 'weekly', day: 'Mon' },
+  { id: 'q11', title: 'Mop all floors',          pts: 25, assignee: 'mom',   status: 'done',        category: 'cleaning', freq: 'weekly', day: 'Wed' },
+  { id: 'q12', title: 'Wipe down appliances',    pts: 15, assignee: 'sophia', status: 'todo',       category: 'kitchen',  freq: 'weekly', day: 'Wed' },
+  { id: 'q13', title: 'Do the laundry',          pts: 20, assignee: 'mom',   status: 'in-progress', category: 'laundry',  freq: 'weekly', day: 'Thu' },
+  { id: 'q14', title: 'Fold + put away laundry', pts: 15, assignee: 'dad',   status: 'todo',        category: 'laundry',  freq: 'weekly', day: 'Thu' },
+  { id: 'q15', title: 'Dust all surfaces',       pts: 20, assignee: 'dad',   status: 'todo',        category: 'cleaning', freq: 'weekly', day: 'Fri' },
+  { id: 'q16', title: 'Empty recycling',         pts: 10, assignee: 'kevin',  status: 'done',       category: 'general',  freq: 'weekly', day: 'Fri' },
+  { id: 'q17', title: 'Clean bathroom #1',       pts: 30, assignee: 'kevin',  status: 'todo',       category: 'cleaning', freq: 'weekly', day: 'Sat' },
+  { id: 'q18', title: 'Clean bathroom #2',       pts: 30, assignee: 'sophia', status: 'todo',       category: 'cleaning', freq: 'weekly', day: 'Sat' },
+  { id: 'q19', title: 'Grocery run',             pts: 20, assignee: 'mom',   status: 'todo',        category: 'general',  freq: 'weekly', day: 'Sun' },
+];
+
+const REWARDS = [
+  { id: 'r1', title: '+30 min screen time',   pts: 50,  icon: '📱', who: ['kevin','sophia'] },
+  { id: 'r2', title: '+1 hr screen time',     pts: 90,  icon: '🎮', who: ['kevin','sophia'] },
+  { id: 'r3', title: 'Movie night pick',      pts: 120, icon: '🎬', who: ['kevin','sophia','mom','dad'] },
+  { id: 'r4', title: 'Dinner of your choice', pts: 80,  icon: '🍕', who: ['kevin','sophia','mom','dad'] },
+  { id: 'r5', title: 'Skip one chore',        pts: 150, icon: '⚡', who: ['kevin','sophia'] },
+  { id: 'r6', title: 'Sleep in pass',         pts: 100, icon: '😴', who: ['kevin','sophia'] },
+];
+
+const CATEGORY_ICONS = { kitchen: '🍳', cleaning: '🧹', laundry: '👕', general: '📦' };
+
+const STATUS_META = {
+  'todo':        { label: 'TO DO',       color: 'var(--text-dim)',    bg: 'rgba(112,112,160,0.15)' },
+  'in-progress': { label: 'IN PROGRESS', color: 'var(--neon-yellow)', bg: 'rgba(255,220,0,0.1)'   },
+  'done':        { label: 'DONE',        color: 'var(--neon-green)',  bg: 'rgba(0,255,120,0.1)'   },
+};
+
+function getMember(id) { return MEMBERS.find(m => m.id === id); }
+
+function computeScores(quests) {
+  const s = Object.fromEntries(MEMBERS.map(m => [m.id, 0]));
+  quests.forEach(q => { if (q.status === 'done') s[q.assignee] += q.pts; });
+  return s;
+}
+
+// ── PIXEL AVATAR ──────────────────────────────────────────────────────────────
+
+function PixelAvatar({ member, size = 32 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-      <span className="pixel glow-green" style={{ fontSize: 20, color: 'var(--neon-green)', letterSpacing: 4 }}>
-        CHORE
+    <svg width={size} height={size} viewBox="0 0 5 5"
+         style={{ imageRendering: 'pixelated', flexShrink: 0 }}>
+      {member.avatar.map((row, ri) =>
+        row.split('').map((bit, ci) =>
+          bit === '1'
+            ? <rect key={`${ri}-${ci}`} x={ci} y={ri} width={1} height={1} fill={member.color} />
+            : null
+        )
+      )}
+    </svg>
+  );
+}
+
+// ── TOP BAR ───────────────────────────────────────────────────────────────────
+
+const TABS = ['QUESTS', 'BOARD', 'SCORES', 'REWARDS'];
+
+function TopBar({ scores, activeTab, setActiveTab }) {
+  return (
+    <div style={{
+      background: 'var(--bg2)',
+      borderBottom: '2px solid var(--border)',
+      padding: '0 20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 24,
+      flexShrink: 0,
+    }}>
+      {/* Logo */}
+      <div style={{ padding: '14px 0', marginRight: 8, whiteSpace: 'nowrap' }}>
+        <span className="pixel glow-green" style={{ fontSize: 11, color: 'var(--neon-green)', letterSpacing: 2 }}>CHORE</span>
+        <span className="pixel"            style={{ fontSize: 11, color: 'var(--text-dim)',   letterSpacing: 2 }}> QUEST</span>
+      </div>
+
+      {/* Member score pills */}
+      <div style={{ display: 'flex', gap: 10, flex: 1 }}>
+        {MEMBERS.map(m => (
+          <div key={m.id} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'var(--bg3)',
+            border: `1px solid ${m.color}33`,
+            borderRadius: 4,
+            padding: '4px 10px',
+          }}>
+            <PixelAvatar member={m} size={20} />
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: m.color }}>{scores[m.id]}</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 9,  color: 'var(--text-dim)' }}>pts</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Nav tabs */}
+      <div style={{ display: 'flex', gap: 2 }}>
+        {TABS.map(tab => {
+          const active = activeTab === tab;
+          return (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              background:  active ? 'rgba(0,255,120,0.1)' : 'transparent',
+              border:      active ? '1px solid var(--neon-green)' : '1px solid transparent',
+              color:       active ? 'var(--neon-green)' : 'var(--text-dim)',
+              fontFamily:  'var(--pixel)',
+              fontSize:    8,
+              padding:     '8px 14px',
+              cursor:      'pointer',
+              borderRadius: 3,
+              transition:  'all .15s',
+              textShadow:  active ? '0 0 8px var(--neon-green)' : 'none',
+            }}>
+              {tab}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── PLACEHOLDER TAB ───────────────────────────────────────────────────────────
+
+function PlaceholderTab({ label }) {
+  return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <span className="pixel" style={{ fontSize: 10, color: 'var(--text-dim)', letterSpacing: 2 }}>
+        {label} — coming soon
       </span>
-      <span className="pixel" style={{ fontSize: 20, color: 'var(--text-dim)', letterSpacing: 4 }}>
-        QUEST
-      </span>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-dim)', marginTop: 24 }}>
-        loading...
-      </span>
+    </div>
+  );
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────────
+
+function App() {
+  const [quests, setQuests] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cq_quests')) || INITIAL_QUESTS; }
+    catch { return INITIAL_QUESTS; }
+  });
+  const [activeTab, setActiveTab] = useState('QUESTS');
+
+  useEffect(() => {
+    localStorage.setItem('cq_quests', JSON.stringify(quests));
+  }, [quests]);
+
+  const scores = computeScores(quests);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)' }}>
+      <TopBar scores={scores} activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {activeTab === 'QUESTS'  && <PlaceholderTab label="QUESTS" />}
+        {activeTab === 'BOARD'   && <PlaceholderTab label="BOARD" />}
+        {activeTab === 'SCORES'  && <PlaceholderTab label="SCORES" />}
+        {activeTab === 'REWARDS' && <PlaceholderTab label="REWARDS" />}
+      </div>
     </div>
   );
 }
