@@ -514,6 +514,210 @@ function BoardTab({ quests, onCycle }) {
   );
 }
 
+// ── SCORES TAB ────────────────────────────────────────────────────────────────
+
+function ScoresTab({ scores }) {
+  const ranked   = [...MEMBERS].sort((a, b) => (scores[b.id] || 0) - (scores[a.id] || 0));
+  const maxScore = Math.max(...Object.values(scores), 1);
+  const medals   = ['🥇', '🥈', '🥉', ''];
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '40px 60px', maxWidth: 800, margin: '0 auto', width: '100%' }}>
+      <div className="pixel glow-green" style={{
+        fontSize:    14,
+        color:       'var(--neon-green)',
+        marginBottom: 40,
+        textAlign:   'center',
+        letterSpacing: 3,
+      }}>
+        LEADERBOARD
+      </div>
+
+      {ranked.map((m, i) => {
+        const score = scores[m.id] || 0;
+        const pct   = (score / maxScore) * 100;
+        return (
+          <div key={m.id} style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
+              <span style={{ fontSize: 18, width: 28, flexShrink: 0 }}>{medals[i]}</span>
+              <PixelAvatar member={m} size={40} />
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 16, fontWeight: 500, color: m.color, flex: 1 }}>
+                {m.name}
+              </span>
+              <span className="pixel" style={{ fontSize: 14, color: 'var(--neon-yellow)', textShadow: '0 0 8px var(--neon-yellow)' }}>
+                {score}
+              </span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-dim)' }}>pts</span>
+            </div>
+            {/* Pixel progress bar */}
+            <div style={{
+              height:       16,
+              background:   'var(--bg3)',
+              border:       '1px solid var(--border)',
+              borderRadius: 2,
+              overflow:     'hidden',
+              marginLeft:   84,
+            }}>
+              <div style={{
+                height:          '100%',
+                width:           `${pct}%`,
+                background:      m.color,
+                boxShadow:       `0 0 10px ${m.color}`,
+                transition:      'width .6s ease',
+                backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(0,0,0,0.2) 6px, rgba(0,0,0,0.2) 8px)',
+              }} />
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Conversion rate card */}
+      <div style={{
+        marginTop:    48,
+        padding:      20,
+        background:   'var(--bg2)',
+        border:       '1px solid var(--border)',
+        borderRadius: 6,
+      }}>
+        <div className="pixel" style={{ fontSize: 8, color: 'var(--text-dim)', marginBottom: 16, letterSpacing: 1 }}>
+          CONVERSION RATE
+        </div>
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          {[
+            { pts: 50,  label: '30 min screen time' },
+            { pts: 90,  label: '1 hr screen time'   },
+            { pts: 150, label: 'skip 1 chore'        },
+          ].map(r => (
+            <div key={r.pts} style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>
+              <span style={{ color: 'var(--neon-yellow)' }}>{r.pts} pts</span>
+              <span style={{ color: 'var(--text-dim)' }}> → {r.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── REWARDS TAB ───────────────────────────────────────────────────────────────
+
+function RewardsTab({ scores }) {
+  const [selectedId, setSelectedId] = useState('kevin');
+  const [redeemed,   setRedeemed]   = useState({});
+
+  const member  = getMember(selectedId);
+  const balance = scores[selectedId] || 0;
+
+  function redeem(r) {
+    if (balance < r.pts || redeemed[r.id]) return;
+    setRedeemed(prev => ({ ...prev, [r.id]: true }));
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '30px 40px' }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
+        <div className="pixel" style={{ fontSize: 10, color: 'var(--neon-pink)', letterSpacing: 2 }}>
+          REWARDS SHOP
+        </div>
+        <div style={{ flex: 1 }} />
+        {MEMBERS.map(m => {
+          const active = selectedId === m.id;
+          return (
+            <button key={m.id} onClick={() => setSelectedId(m.id)} style={{
+              display:      'flex',
+              alignItems:   'center',
+              gap:          6,
+              background:   active ? m.color + '22' : 'var(--bg2)',
+              border:       active ? `1px solid ${m.color}` : '1px solid var(--border)',
+              color:        active ? m.color : 'var(--text-dim)',
+              fontFamily:   'var(--mono)',
+              fontSize:     12,
+              padding:      '6px 14px',
+              cursor:       'pointer',
+              borderRadius: 4,
+              transition:   'all .15s',
+            }}>
+              <PixelAvatar member={m} size={18} />
+              {m.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Balance card */}
+      <div style={{
+        display:      'flex',
+        alignItems:   'center',
+        gap:          14,
+        marginBottom: 28,
+        padding:      '14px 20px',
+        background:   'var(--bg2)',
+        border:       `1px solid ${member.color}44`,
+        borderRadius: 6,
+      }}>
+        <PixelAvatar member={member} size={44} />
+        <div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 15, color: member.color, marginBottom: 4 }}>
+            {member.name}
+          </div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+            Balance:{' '}
+            <span className="pixel" style={{ fontSize: 12, color: 'var(--neon-yellow)', textShadow: '0 0 6px var(--neon-yellow)' }}>
+              {balance}
+            </span>
+            {' '}pts
+          </div>
+        </div>
+      </div>
+
+      {/* Reward cards grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        {REWARDS.filter(r => r.who.includes(selectedId)).map(r => {
+          const canAfford = balance >= r.pts;
+          const done      = !!redeemed[r.id];
+          return (
+            <div key={r.id} style={{
+              background:   'var(--bg2)',
+              border:       done ? '2px solid var(--neon-green)' : '1px solid var(--border)',
+              borderRadius: 8,
+              padding:      20,
+              display:      'flex',
+              flexDirection: 'column',
+              gap:          12,
+              opacity:      !canAfford && !done ? 0.5 : 1,
+              boxShadow:    done ? '0 0 20px oklch(0.85 0.22 145 / 0.2)' : 'none',
+              transition:   'opacity .2s, box-shadow .2s',
+            }}>
+              <div style={{ fontSize: 32, textAlign: 'center' }}>{r.icon}</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 500, textAlign: 'center' }}>
+                {r.title}
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <span className="pixel" style={{ fontSize: 10, color: 'var(--neon-yellow)' }}>{r.pts} pts</span>
+              </div>
+              <button onClick={() => redeem(r)} disabled={!canAfford || done} style={{
+                background:   done      ? 'rgba(0,255,120,0.1)'  : canAfford ? 'rgba(0,255,120,0.15)' : 'var(--bg3)',
+                border:       done      ? '1px solid var(--neon-green)' : canAfford ? '1px solid oklch(0.85 0.22 145 / 0.4)' : '1px solid var(--border)',
+                color:        done      ? 'var(--neon-green)' : canAfford ? 'var(--neon-green)' : 'var(--text-dim)',
+                fontFamily:   'var(--pixel)',
+                fontSize:     8,
+                padding:      10,
+                cursor:       canAfford && !done ? 'pointer' : 'default',
+                borderRadius: 4,
+                letterSpacing: 0.5,
+                transition:   'all .15s',
+              }}>
+                {done ? '✓ REDEEMED' : canAfford ? 'REDEEM' : 'LOCKED'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── PLACEHOLDER TAB ───────────────────────────────────────────────────────────
 
 function PlaceholderTab({ label }) {
@@ -552,8 +756,8 @@ function App() {
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'QUESTS'  && <QuestsTab quests={quests} onCycle={cycleStatus} />}
         {activeTab === 'BOARD'   && <BoardTab quests={quests} onCycle={cycleStatus} />}
-        {activeTab === 'SCORES'  && <PlaceholderTab label="SCORES" />}
-        {activeTab === 'REWARDS' && <PlaceholderTab label="REWARDS" />}
+        {activeTab === 'SCORES'  && <ScoresTab  scores={scores} />}
+        {activeTab === 'REWARDS' && <RewardsTab scores={scores} />}
       </div>
     </div>
   );
