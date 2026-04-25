@@ -407,6 +407,113 @@ function QuestsTab({ quests, onCycle }) {
   );
 }
 
+// ── BOARD TAB ─────────────────────────────────────────────────────────────────
+
+function BoardTab({ quests, onCycle }) {
+  const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+      <div style={{
+        display:             'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap:                 12,
+        minHeight:           '100%',
+      }}>
+        {ALL_DAYS.map(day => {
+          const isToday = day === TODAY;
+          // daily non-cook quests appear every day; specific-day quests appear on their day
+          const dayQs = quests.filter(q =>
+            (q.freq === 'daily' && !q.cookNight) || q.day === day
+          );
+          const doneCount = dayQs.filter(q => q.status === 'done').length;
+
+          return (
+            <div key={day} style={{
+              background:  'var(--bg2)',
+              border:      isToday ? '2px solid var(--neon-green)' : '1px solid var(--border)',
+              borderRadius: 6,
+              overflow:    'hidden',
+              boxShadow:   isToday ? '0 0 20px oklch(0.85 0.22 145 / 0.2)' : 'none',
+            }}>
+              {/* Day header */}
+              <div style={{
+                padding:        '8px 12px',
+                background:     isToday ? 'rgba(0,255,120,0.1)' : 'var(--bg3)',
+                borderBottom:   '1px solid var(--border)',
+                display:        'flex',
+                justifyContent: 'space-between',
+                alignItems:     'center',
+              }}>
+                <span className="pixel" style={{
+                  fontSize: 8,
+                  color: isToday ? 'var(--neon-green)' : 'var(--text-dim)',
+                  textShadow: isToday ? '0 0 8px var(--neon-green)' : 'none',
+                }}>
+                  {day}{isToday ? ' ◀' : ''}
+                </span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-dim)' }}>
+                  {doneCount}/{dayQs.length}
+                </span>
+              </div>
+
+              {/* Quest cards */}
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {dayQs.map(q => {
+                  const m  = getMember(q.assignee);
+                  const sm = STATUS_META[q.status];
+                  return (
+                    <div key={q.id} onClick={() => onCycle(q.id)} title={`${q.title} — click to cycle status`}
+                      style={{
+                        background:   sm.bg,
+                        border:       `1px solid ${sm.color}44`,
+                        borderRadius: 3,
+                        padding:      '5px 7px',
+                        cursor:       'pointer',
+                        display:      'flex',
+                        alignItems:   'center',
+                        gap:          5,
+                        transition:   'opacity .15s',
+                      }}>
+                      <PixelAvatar member={m} size={14} />
+                      <span style={{
+                        fontFamily:     'var(--mono)',
+                        fontSize:       10,
+                        color:          'var(--text)',
+                        flex:           1,
+                        overflow:       'hidden',
+                        whiteSpace:     'nowrap',
+                        textOverflow:   'ellipsis',
+                        textDecoration: q.status === 'done' ? 'line-through' : 'none',
+                        opacity:        q.status === 'done' ? 0.5 : 1,
+                      }}>
+                        {q.title}
+                      </span>
+                      <span style={{
+                        fontFamily: 'var(--pixel)',
+                        fontSize:   6,
+                        color:      'var(--neon-yellow)',
+                        flexShrink: 0,
+                      }}>
+                        +{q.pts}
+                      </span>
+                    </div>
+                  );
+                })}
+                {dayQs.length === 0 && (
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-dim)', textAlign: 'center', padding: '12px 0' }}>
+                    rest day
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── PLACEHOLDER TAB ───────────────────────────────────────────────────────────
 
 function PlaceholderTab({ label }) {
@@ -444,7 +551,7 @@ function App() {
       <TopBar scores={scores} activeTab={activeTab} setActiveTab={setActiveTab} />
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'QUESTS'  && <QuestsTab quests={quests} onCycle={cycleStatus} />}
-        {activeTab === 'BOARD'   && <PlaceholderTab label="BOARD" />}
+        {activeTab === 'BOARD'   && <BoardTab quests={quests} onCycle={cycleStatus} />}
         {activeTab === 'SCORES'  && <PlaceholderTab label="SCORES" />}
         {activeTab === 'REWARDS' && <PlaceholderTab label="REWARDS" />}
       </div>
