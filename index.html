@@ -217,6 +217,196 @@ function TopBar({ scores, activeTab, setActiveTab }) {
   );
 }
 
+// ── STATUS BADGE ─────────────────────────────────────────────────────────────
+
+function StatusBadge({ status, onClick }) {
+  const m = STATUS_META[status];
+  return (
+    <button onClick={onClick} title="Click to cycle status" style={{
+      background:   m.bg,
+      border:       `1px solid ${m.color}66`,
+      color:        m.color,
+      fontFamily:   'var(--pixel)',
+      fontSize:     7,
+      padding:      '4px 8px',
+      borderRadius: 3,
+      cursor:       'pointer',
+      whiteSpace:   'nowrap',
+      letterSpacing: 0.5,
+      transition:   'all .15s',
+      minWidth:     90,
+      textAlign:    'center',
+    }}>
+      {m.label}
+    </button>
+  );
+}
+
+// ── QUEST ROW ─────────────────────────────────────────────────────────────────
+
+function QuestRow({ quest, onCycle }) {
+  const member = getMember(quest.assignee);
+  const done   = quest.status === 'done';
+  return (
+    <div style={{
+      display:             'grid',
+      gridTemplateColumns: '1fr 130px 110px 60px 80px',
+      alignItems:          'center',
+      gap:                 12,
+      padding:             '10px 20px',
+      borderBottom:        '1px solid var(--border)',
+      background:          done ? 'rgba(0,255,120,0.02)' : 'transparent',
+      opacity:             done ? 0.65 : 1,
+      transition:          'background .15s',
+    }}>
+      {/* Title */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <span style={{ fontSize: 14, flexShrink: 0 }}>{CATEGORY_ICONS[quest.category]}</span>
+        <span style={{
+          fontFamily:     'var(--mono)',
+          fontSize:       13,
+          fontWeight:     500,
+          textDecoration: done ? 'line-through' : 'none',
+          color:          done ? 'var(--text-dim)' : 'var(--text)',
+          overflow:       'hidden',
+          whiteSpace:     'nowrap',
+          textOverflow:   'ellipsis',
+        }}>
+          {quest.title}{quest.cookNight ? ' 🍽️' : ''}
+        </span>
+      </div>
+
+      {/* Assignee */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <PixelAvatar member={member} size={22} />
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: member.color }}>{member.name}</span>
+      </div>
+
+      {/* Status badge */}
+      <StatusBadge status={quest.status} onClick={() => onCycle(quest.id)} />
+
+      {/* Points */}
+      <div style={{
+        fontFamily:  'var(--pixel)',
+        fontSize:    9,
+        color:       'var(--neon-yellow)',
+        textAlign:   'center',
+        textShadow:  '0 0 6px var(--neon-yellow)',
+      }}>
+        +{quest.pts}
+      </div>
+
+      {/* Day */}
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-dim)', textAlign: 'right' }}>
+        {quest.freq === 'daily' ? 'daily' : (quest.day || '—')}
+      </div>
+    </div>
+  );
+}
+
+// ── QUESTS TAB ────────────────────────────────────────────────────────────────
+
+function QuestsTab({ quests, onCycle }) {
+  const [filter, setFilter] = useState('all');
+
+  const dailyQs = quests.filter(q => q.freq === 'daily' && !q.cookNight);
+  const cookQs  = quests.filter(q => q.cookNight);
+  const weekQs  = quests.filter(q => q.freq === 'weekly');
+
+  const applyFilter = list =>
+    filter === 'all' ? list : list.filter(q => q.assignee === filter);
+
+  function SectionHeader({ title, accent }) {
+    return (
+      <div style={{
+        display:             'grid',
+        gridTemplateColumns: '1fr 130px 110px 60px 80px',
+        gap:                 12,
+        padding:             '8px 20px',
+        background:          'var(--bg3)',
+        borderBottom:        '2px solid var(--border)',
+        borderTop:           '2px solid var(--border)',
+      }}>
+        <span className="pixel" style={{ fontSize: 8, color: accent, letterSpacing: 1 }}>{title}</span>
+        <span className="pixel" style={{ fontSize: 7, color: 'var(--text-dim)' }}>ASSIGNEE</span>
+        <span className="pixel" style={{ fontSize: 7, color: 'var(--text-dim)' }}>STATUS</span>
+        <span className="pixel" style={{ fontSize: 7, color: 'var(--text-dim)' }}>PTS</span>
+        <span className="pixel" style={{ fontSize: 7, color: 'var(--text-dim)', textAlign: 'right' }}>DAY</span>
+      </div>
+    );
+  }
+
+  function Section({ title, list, accent }) {
+    const rows = applyFilter(list);
+    return (
+      <div>
+        <SectionHeader title={title} accent={accent} />
+        {rows.length > 0
+          ? rows.map(q => <QuestRow key={q.id} quest={q} onCycle={onCycle} />)
+          : (
+            <div style={{ padding: '18px 20px', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-dim)', textAlign: 'center' }}>
+              No quests
+            </div>
+          )
+        }
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Filter bar */}
+      <div style={{
+        display:      'flex',
+        alignItems:   'center',
+        gap:          12,
+        padding:      '10px 20px',
+        background:   'var(--bg2)',
+        borderBottom: '1px solid var(--border)',
+        flexShrink:   0,
+      }}>
+        <span className="pixel" style={{ fontSize: 8, color: 'var(--text-dim)' }}>FILTER:</span>
+
+        {/* ALL button */}
+        {['all', ...MEMBERS.map(m => m.id)].map(id => {
+          const m      = getMember(id);
+          const active = filter === id;
+          const color  = m ? m.color : 'var(--neon-green)';
+          return (
+            <button key={id} onClick={() => setFilter(id)} style={{
+              display:      'flex',
+              alignItems:   'center',
+              gap:          6,
+              background:   active ? color + '22' : 'transparent',
+              border:       active ? `1px solid ${color}` : '1px solid var(--border)',
+              color:        active ? color : 'var(--text-dim)',
+              fontFamily:   'var(--mono)',
+              fontSize:     12,
+              padding:      '4px 12px',
+              cursor:       'pointer',
+              borderRadius: 3,
+            }}>
+              {m && <PixelAvatar member={m} size={16} />}
+              {id === 'all' ? 'ALL' : m.name}
+            </button>
+          );
+        })}
+
+        <div style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+          Click status to cycle →
+        </div>
+      </div>
+
+      {/* Quest sections */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <Section title="📅 DAILY QUESTS"         list={dailyQs} accent="var(--neon-green)" />
+        <Section title="🍽️ COOK NIGHTS (MON–FRI)" list={cookQs}  accent="var(--neon-pink)" />
+        <Section title="📋 WEEKLY QUESTS"         list={weekQs}  accent="var(--neon-blue)" />
+      </div>
+    </div>
+  );
+}
+
 // ── PLACEHOLDER TAB ───────────────────────────────────────────────────────────
 
 function PlaceholderTab({ label }) {
@@ -244,11 +434,16 @@ function App() {
 
   const scores = computeScores(quests);
 
+  function cycleStatus(id) {
+    const cycle = { 'todo': 'in-progress', 'in-progress': 'done', 'done': 'todo' };
+    setQuests(prev => prev.map(q => q.id === id ? { ...q, status: cycle[q.status] } : q));
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)' }}>
       <TopBar scores={scores} activeTab={activeTab} setActiveTab={setActiveTab} />
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {activeTab === 'QUESTS'  && <PlaceholderTab label="QUESTS" />}
+        {activeTab === 'QUESTS'  && <QuestsTab quests={quests} onCycle={cycleStatus} />}
         {activeTab === 'BOARD'   && <PlaceholderTab label="BOARD" />}
         {activeTab === 'SCORES'  && <PlaceholderTab label="SCORES" />}
         {activeTab === 'REWARDS' && <PlaceholderTab label="REWARDS" />}
